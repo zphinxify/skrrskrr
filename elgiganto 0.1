@@ -1,0 +1,237 @@
+CREATE TABLE Category
+(
+    CategoryID INTEGER PRIMARY KEY IDENTITY(1,1),
+    CategoryName VARCHAR(50)
+)
+
+CREATE TABLE Products
+(
+    ProductID INTEGER PRIMARY KEY IDENTITY(1,1),
+    CategoryID INTEGER FOREIGN KEY (CategoryID) REFERENCES Category(CategoryID),
+    ProductName VARCHAR(50),
+    ProductPrice INTEGER,
+    InStock BIT
+)
+
+CREATE TABLE ProductPopularity
+(
+    PopularityID INTEGER PRIMARY KEY IDENTITY(1,1),
+    ProductID INTEGER FOREIGN KEY (ProductID) REFERENCES Products(ProductID),
+    PopularityCount INTEGER
+)
+
+
+CREATE TABLE Warehouse
+(
+    WarehouseID INTEGER PRIMARY KEY IDENTITY(1,1),
+    WarehouseName VARCHAR(50),
+    WarehouseAddress VARCHAR(50)
+)
+
+CREATE TABLE Orders
+(
+    TransactionID INTEGER PRIMARY KEY IDENTITY(1,1),
+    ProductID INTEGER FOREIGN KEY (ProductID) REFERENCES Products(ProductID),
+    TimeCreated DATETIME,
+    Quantity INTEGER,
+)
+ALTER TABLE Orders
+DROP COLUMN WarehouseID;
+
+ALTER TABLE Orders
+DROP CONSTRAINT FK__Orders__Warehous__6D0D32F4;
+
+CREATE TABLE Cart
+(
+    CartID INTEGER PRIMARY KEY IDENTITY(1,1),
+    ProductID INTEGER FOREIGN KEY (ProductID) REFERENCES Products(ProductID),
+    TimeCreated DATETIME,
+    Quantity INTEGER
+)
+
+CREATE TABLE WarehouseStatus
+(
+    ProductID INTEGER PRIMARY KEY IDENTITY(1,1),
+    WarehouseID INTEGER FOREIGN KEY (WarehouseID) REFERENCES Warehouse(WarehouseID),
+    ProductQuantity INTEGER
+)
+
+CREATE TABLE WarehouseTransaction
+(
+    TransactionID INTEGER PRIMARY KEY IDENTITY(1,1),
+    WarehouseID INTEGER FOREIGN KEY (WarehouseID) REFERENCES Warehouse(WarehouseID),
+    ProductID INTEGER FOREIGN KEY (ProductID) REFERENCES Products(ProductID),
+    TimeCreated DATETIME,
+    ProductQuantity INTEGER,
+    Reason varchar(50)
+)
+
+
+CREATE TABLE Product_Audits
+(
+    ChangeID INT IDENTITY PRIMARY KEY,
+    ProductID INTEGER FOREIGN KEY (ProductID) REFERENCES Products(ProductID),
+    ProductName VARCHAR (60),
+    CategoryID INT NOT NULL,
+    ProductPrice DEC(10,2) NOT NULL,
+    Updated_At DATETIME NOT NULL,
+    Operation CHAR(15) NOT NULL,
+    CHECK(operation = 'UTLEVERANS' or operation='RETUR' or operation='JUSTERING')
+);
+
+DROP TABLE Product_Audits
+
+INSERT INTO Category
+VALUES
+    (
+        'Computers')
+
+INSERT INTO Products
+VALUES
+    (
+        1, 'ROG', 17200, 1
+);
+
+INSERT INTO ProductPopularity
+VALUES
+    (
+        5, 0
+);
+
+INSERT INTO Warehouse
+VALUES
+    (
+        'OG Lagret', 'Tomtegatan 13'
+);
+
+INSERT INTO Cart
+VALUES
+    (
+        1, GETDATE(), 3, 1
+)
+
+SELECT Cart.CartID
+FROM CART
+
+INSERT INTO WarehouseStatus
+VALUES
+    (
+        5, 19
+)
+
+
+DROP TRIGGER trg_product_audit
+
+
+--- VARUKORG ---
+
+-- VarukorgsId returneras --
+
+INSERT INTO Cart
+OUTPUT
+inserted.CartID
+VALUES
+    (1, GETDATE(), 2)
+
+-- Innehållet i varukorg returneras -- 
+SELECT *
+FROM Cart
+WHERE CartID = 2
+
+-- Lägga i varukorg -- 
+
+INSERT INTO Cart
+VALUES(1, GETDATE(), 2)
+
+SELECT *
+FROM Cart
+
+GO;
+CREATE TRIGGER trg_Orders_ProductAudits
+ON ELGIGANTO6.dbo.Orders
+AFTER INSERT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO Product_Audits
+        (
+        ProductID,
+        ProductName,
+        ProductPrice,
+        Updated_At,
+        Operation
+        )
+    SELECT
+        i.ProductID,
+        p.ProductName,
+        p.ProductPrice,
+        GETDATE(),
+        'UTLEVERANS'
+    FROM
+        inserted AS i
+        INNER JOIN Products AS p
+        ON p.ProductID = i.ProductID;
+END
+GO;
+
+ALTER TRIGGER trg_Cart_QuantityHandler
+ON ELGIGANTO6.dbo.Cart
+After INSERT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @Count int
+    SELECT @Count = COUNT(*)
+    FROM ELGIGANTO6.dbo.Cart
+
+    CREATE TABLE #UpdatedCart (ProductID int, CartID int, CreatedAt datetime2, Quantity int)
+    INSERT INTO #UpdatedCart (CartId, ProductId, CreatedAt, Quantity) 
+        SELECT inserted.CartId, inserted.ProductID, inserted.Timecreated, inserted.Quantity 
+        FROM inserted
+
+    SELECT CartID FROM #UpdatedCart
+
+    DELETE FROM ELGIGANTO6.dbo.Cart 
+        WHERE CartID = (SELECT CartID FROM #UpdatedCart)
+            AND ProductID = (SELECT ProductID FROM #UpdatedCart)
+            AND TimeCreated != (SELECT CreatedAt FROM #UpdatedCart)
+
+    UPDATE Cart SET Cart.Quantity =+ #UpdatedCart.Quantity 
+    FROM #UpdatedCart 
+END
+GO;
+
+// Egen trigger
+   DELETE FROM ELGIGANTO6.dbo.Cart 
+    WHERE CartID = Cart.CartID
+        AND Quantity = 0
+
+    CREATE INDEX Cart_Index
+ON Cart
+(CartID, ProductID)
+
+    ALTER TABLE Cart
+    DROP COLUMN CartID
+
+    INSERT INTO Cart
+    VALUES(1, GETDATE(), 2)
+
+    SELECT *
+    FROM Cart;
+
+    TRUNCATE TABLE Cart
+    INSERT INTO Cart
+    VALUES(2, GETDATE(), 10);
+
+    SELECT *
+    FROM Cart;
+
+    INSERT INTO Cart
+    VALUES(1, GETDATE(), -10);
+
+
+    ALTER TABLE Cart
+ADD CreatedAt datetime
+
+    ALTER TABLE Cart
+ALTER COLUMN TimeCreated DATETIME2(5) NOT NULL
